@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Fly Tesla Roadster to Steal Eggs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Luckiest+Guy&display=swap" rel="stylesheet" />
+    <!-- Bloxity SDK (pinned v1): must load before the game code and before any matchmaker request. -->
+    <script src="https://sdk.bloxity.io/v1/legion-sdk.min.js"></script>
+    <style>
+      .boot { position: fixed; inset: 0; z-index: 1000; overflow: hidden; background: linear-gradient(160deg, #1b2a49, #3a2a6b 60%, #7a2f5a); transition: opacity 0.6s ease; }
+      .boot.out { opacity: 0; pointer-events: none; }
+      .boot-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: Fredoka, 'Segoe UI', system-ui, sans-serif; text-align: center; padding: 0 16px; }
+      .boot-egg { font-size: 84px; animation: boot-bob 1.4s ease-in-out infinite; }
+      .boot-title { color: #fff; font-size: 30px; font-weight: 700; margin-top: 14px; }
+      .boot-sub { margin-top: 8px; color: #b9c2dc; font-size: 17px; font-weight: 500; }
+      .boot-dots { display: flex; gap: 11px; margin-top: 28px; }
+      .boot-dots i { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: boot-dot 1.2s ease-in-out infinite; }
+      .boot-dots i:nth-child(2) { animation-delay: 0.15s; }
+      .boot-dots i:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes boot-bob { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-14px) rotate(6deg); } }
+      @keyframes boot-dot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.55; } 30% { transform: translateY(-7px); opacity: 1; } }
+    </style>
+  </head>
+  <body>
+    <div id="boot" class="boot" role="status" aria-label="Loading Fly Tesla Roadster to Steal Eggs">
+      <div class="boot-card">
+        <div class="boot-egg">🥚🚗</div>
+        <div class="boot-title">Fly Tesla Roadster to Steal Eggs</div>
+        <div class="boot-sub">Loading...</div>
+        <div class="boot-dots"><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="./src/main.jsx"></script>
+  </body>
+</html>

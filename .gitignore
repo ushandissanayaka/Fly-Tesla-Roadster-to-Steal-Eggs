@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+roadster-eggs-server/data/*.json
+
+# large reference recordings
+referances/*.mp4
+referances/*.mov
+referances/*.webm
