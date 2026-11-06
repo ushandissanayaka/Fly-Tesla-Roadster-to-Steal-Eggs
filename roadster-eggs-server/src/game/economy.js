@@ -1,7 +1,8 @@
 // All money / egg / animal rules. Everything here runs on the server only; the client just asks.
 import {
   BIOMES, ANIMALS, ANIMAL_BY_ID, RARITIES, MUTATIONS, CARS, CAR_BY_ID, UPGRADES, upgradeCost, BASE_SLOTS,
-  SKUS, AD_BOOST_MS, AD_BOOST_MULT, eventAt, carStats,
+  SKUS, AD_BOOST_MS, AD_BOOST_MULT, eventAt, carStats, REWARD_EVERY_MS, rewardAmount, rebirthCost, REBIRTH_BONUS,
+  FRIEND_BOOST_EACH, FRIEND_BOOST_MAX,
 } from '../shared/gameData.js';
 
 const MAX_ANIMALS = 300;
@@ -11,20 +12,24 @@ const fail = (error) => ({ ok: false, error });
 export function ensureProfile(p) {
   p.upgrades ??= {};
   for (const k of Object.keys(UPGRADES)) p.upgrades[k] ??= 0;
-  p.ownedCars ??= ['red'];
+  p.ownedCars ??= ['white'];
   p.incubators ??= [];
   p.animals ??= [];
   p.discovered ??= {};
   p.passes ??= {};
   p.boostUntil ??= 0;
-  if (!CAR_BY_ID[p.car]) p.car = 'red';
+  p.rebirths ??= 0;
+  p.lastRewardAt ??= 0;
+  if (!CAR_BY_ID[p.car]) p.car = 'white';
   return p;
 }
 
 export const slotCount = (p) => BASE_SLOTS + (p.upgrades.slots || 0) + (p.passes.vip ? 1 : 0);
 
-export function incomeMultiplier(p, now = Date.now()) {
-  let m = 1;
+export const friendBoost = (othersInRoom) => Math.min(FRIEND_BOOST_MAX, Math.max(0, othersInRoom) * FRIEND_BOOST_EACH);
+
+export function incomeMultiplier(p, now = Date.now(), friends = 0) {
+  let m = 1 + (p.rebirths || 0) * REBIRTH_BONUS + friends;
   if (p.passes.vip) m *= 1.5;
   if (p.boostUntil > now) m *= AD_BOOST_MULT;
   m *= eventAt(now).event?.income ?? 1;
@@ -32,13 +37,13 @@ export function incomeMultiplier(p, now = Date.now()) {
 }
 
 // money per second from all animals at the base
-export function incomePerSec(p, now = Date.now()) {
+export function incomePerSec(p, now = Date.now(), friends = 0) {
   let sum = 0;
   for (const a of p.animals) {
     const def = ANIMAL_BY_ID[a.id];
     if (def) sum += def.income * (MUTATIONS[a.mut]?.mult ?? 1);
   }
-  return sum * incomeMultiplier(p, now);
+  return sum * incomeMultiplier(p, now, friends);
 }
 
 export function addMoney(p, amount) {
@@ -152,7 +157,7 @@ export function grantAdBoost(p, now = Date.now()) {
 
 // ---------------------------------------------------------------- what the client sees
 
-export function publicProfile(p, now = Date.now()) {
+export function publicProfile(p, now = Date.now(), friends = 0) {
   return {
     money: Math.floor(p.money),
     totalMoney: Math.floor(p.totalMoney),
@@ -169,10 +174,38 @@ export function publicProfile(p, now = Date.now()) {
     discovered: p.discovered,
     passes: p.passes,
     boostUntil: p.boostUntil,
-    income: incomePerSec(p, now),
+    income: incomePerSec(p, now, friends),
+    rebirths: p.rebirths,
+    rebirthCost: rebirthCost(p.rebirths),
+    friendBoost: friends,
+    rewardIn: Math.max(0, p.lastRewardAt + REWARD_EVERY_MS - now),
     stats: carStats(p.car, p.upgrades),
     serverNow: now,
   };
+}
+
+// ---------------------------------------------------------------- free reward + rebirth
+
+export function claimReward(p, now = Date.now(), friends = 0) {
+  if (now < p.lastRewardAt + REWARD_EVERY_MS) return fail('not_ready');
+  const amount = rewardAmount(incomePerSec(p, now, friends), p.rebirths);
+  p.lastRewardAt = now;
+  addMoney(p, amount);
+  return ok({ amount });
+}
+
+// resets money, animals, eggs and training for a permanent income bonus (cars and incubator upgrades stay)
+export function rebirth(p) {
+  const cost = rebirthCost(p.rebirths);
+  if (p.money < cost) return fail('not_enough_money');
+  p.rebirths += 1;
+  p.money = 100;
+  p.animals = [];
+  p.incubators = [];
+  p.upgrades.speed = 0;
+  p.upgrades.accel = 0;
+  p.upgrades.boost = 0;
+  return ok({ rebirths: p.rebirths });
 }
 
 export { CARS };

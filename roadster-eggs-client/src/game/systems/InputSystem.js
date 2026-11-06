@@ -26,12 +26,12 @@ export class InputSystem {
     const k = this.keys;
     const t = this.touch;
     const up = k.has('KeyW') || k.has('ArrowUp') || t.gas;
-    const down = k.has('KeyS') || k.has('ArrowDown') || t.brake;
+    const down = k.has('KeyS') || k.has('ArrowDown');
     const left = k.has('KeyA') || k.has('ArrowLeft') || t.left;
     const right = k.has('KeyD') || k.has('ArrowRight') || t.right;
     this.state.throttle = (up ? 1 : 0) - (down ? 1 : 0);
-    this.state.steer = (left ? 1 : 0) - (right ? 1 : 0);   // + = turn left
-    this.state.brake = k.has('Space');
+    this.state.steer = (left ? 1 : 0) - (right ? 1 : 0);   // + = turn left / move left
+    this.state.brake = k.has('Space') || t.brake;   // brake in the car, jump on foot
     this.state.nitro = k.has('ShiftLeft') || k.has('ShiftRight') || t.nitro;
     return this.state;
   }

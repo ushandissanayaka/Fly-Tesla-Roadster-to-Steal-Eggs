@@ -10,6 +10,7 @@ export class Guard {
     this.z = this.home.z;
     this.chasing = false;
     this.t = 0;
+    this.stunUntil = 0;
 
     const g = new THREE.Group();
     const torso = new THREE.Mesh(new THREE.BoxGeometry(2, 2.4, 1.4), mat(0x9aa4b5, { metal: 0.6, rough: 0.35 }));
@@ -51,7 +52,23 @@ export class Guard {
     this.eye.material.color.set(0xff2222);
   }
 
+  stun(seconds) {
+    this.stunUntil = this.t + seconds;
+    this.eye.material.color.set(0xffd23f);
+  }
+
+  // push the guard away from a point (the bat)
+  knockback(fromX, fromZ, dist) {
+    const dx = this.x - fromX;
+    const dz = this.z - fromZ;
+    const d = Math.hypot(dx, dz) || 1;
+    this.x += (dx / d) * dist;
+    this.z += (dz / d) * dist;
+    this.updateMesh();
+  }
+
   reset() {
+    this.stunUntil = 0;
     this.chasing = false;
     this.x = this.home.x;
     this.z = this.home.z;
@@ -68,6 +85,11 @@ export class Guard {
       this.head.rotation.y = Math.sin(this.t * 2) * 0.4;
       return false;
     }
+    if (this.t < this.stunUntil) {
+      this.legs.forEach((l) => { l.rotation.x = 0; });
+      return false;
+    }
+    this.eye.material.color.set(0xff2222);
     const dx = target.x - this.x;
     const dz = target.z - this.z;
     const d = Math.hypot(dx, dz) || 1;

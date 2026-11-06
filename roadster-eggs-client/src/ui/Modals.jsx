@@ -101,7 +101,8 @@ function Incubator({ game, p }) {
 }
 
 function Zoo({ game, p }) {
-  const [tab, setTab] = useState('book');
+  const initial = useStore((st) => st.zooTab);
+  const [tab, setTab] = useState(initial || 'book');
   const found = Object.keys(p.discovered).length;
   const sellIds = (maxRarity) => p.animals
     .map((a, i) => [a, i])
@@ -203,6 +204,19 @@ function Shop({ game, p }) {
   );
 }
 
+function Rebirth({ game, p }) {
+  const can = p.money >= p.rebirthCost;
+  return (
+    <Frame title="🔄 Rebirth">
+      <p className="hint">Reset your money, animals, eggs and training for a permanent <b>+50% income</b> per rebirth. Cars and incubator upgrades are kept.</p>
+      <div className="row">
+        <div><b>Rebirths: {p.rebirths}</b><small>Current bonus: +{p.rebirths * 50}%</small></div>
+        <button disabled={!can} className={can ? 'buy' : 'no'} onClick={() => game.send('rebirth')}>${fmt(p.rebirthCost)}</button>
+      </div>
+    </Frame>
+  );
+}
+
 function HatchResult() {
   const r = useStore((s) => s.hatchResult);
   if (!r) return null;
@@ -233,5 +247,6 @@ export function Modals({ game }) {
   if (p && modal === 'incubator') body = <Incubator game={game} p={p} />;
   if (p && modal === 'zoo') body = <Zoo game={game} p={p} />;
   if (p && modal === 'shop') body = <Shop game={game} p={p} />;
+  if (p && modal === 'rebirth') body = <Rebirth game={game} p={p} />;
   return <>{body}<HatchResult /></>;
 }

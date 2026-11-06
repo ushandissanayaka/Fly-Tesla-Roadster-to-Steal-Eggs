@@ -8,11 +8,18 @@ export const MAX_CLIENTS = 20;
 
 // ---------------------------------------------------------------- world
 
+// Layout (like the reference game): a rectangular lobby (your plot at the origin, four pens in a 2x2 grid)
+// and ONE long track that leaves the middle of the lobby's front edge and runs straight ahead (+x)
+// through all the egg zones in a row.
 export const WORLD = {
-  ringRadius: 330,      // distance from the base to each biome centre
+  trackZ: 43,           // the track's centre line (it runs along +x, through the middle of the lobby front)
+  trackHalfWidth: 12,
+  trackStartX: 98,      // the track starts at the lobby's front edge
+  trackX0: 360,         // centre of the first egg zone
+  trackSpacing: 250,    // distance between egg zones along the track
   baseRadius: 34,       // delivering an egg inside this circle counts as "at the base"
   biomeRadius: 100,
-  worldRadius: 620,
+  worldRadius: 2900,
   gravity: 40,
   rampLength: 20,
   rampHeight: 8,
@@ -43,16 +50,17 @@ export const BIOMES = [
   eggValue: 1 + i * 2,
 }));
 
-// geometry of one biome's ramp / plateau / egg nest in world coordinates
+// geometry of one biome's ramp / plateau / egg nest in world coordinates.
+// Every egg zone sits on the track, one after the other; its outward axis (u) points along +x.
 const layoutCache = [];
 export function biomeLayout(i) {
   if (layoutCache[i]) return layoutCache[i];
   const b = BIOMES[i];
-  const ang = (i / BIOMES.length) * Math.PI * 2;
-  const cos = Math.cos(ang);
-  const sin = Math.sin(ang);
-  const cx = cos * WORLD.ringRadius;
-  const cz = sin * WORLD.ringRadius;
+  const ang = 0;
+  const cos = 1;
+  const sin = 0;
+  const cx = WORLD.trackX0 + i * WORLD.trackSpacing;
+  const cz = WORLD.trackZ;
   const rampU0 = WORLD.rampStartU;
   const rampU1 = rampU0 + WORLD.rampLength;
   const plateauU0 = rampU1 + b.gap;
@@ -156,11 +164,11 @@ export const MUTATIONS = [
 // ---------------------------------------------------------------- cars (12)
 
 export const CARS = [
-  { id: 'red',     name: 'Classic Red Roadster',  color: 0xd81f26, price: 0,        speed: 34, accel: 26, handling: 1.0 },
+  { id: 'white',   name: 'Pearl White Roadster',  color: 0xf0f9f9, price: 0,        speed: 34, accel: 26, handling: 1.0 },
   { id: 'blue',    name: 'Ocean Blue Roadster',   color: 0x1f6fe0, price: 1_500,    speed: 38, accel: 28, handling: 1.0 },
   { id: 'yellow',  name: 'Solar Yellow Roadster', color: 0xf5c518, price: 6_000,    speed: 43, accel: 30, handling: 1.05 },
   { id: 'green',   name: 'Emerald Roadster',      color: 0x1fb34f, price: 20_000,   speed: 48, accel: 32, handling: 1.05 },
-  { id: 'white',   name: 'Pearl White Roadster',  color: 0xf2f2f5, price: 60_000,   speed: 54, accel: 34, handling: 1.1 },
+  { id: 'red',     name: 'Classic Red Roadster',  color: 0xd81f26, price: 60_000,   speed: 54, accel: 34, handling: 1.1 },
   { id: 'black',   name: 'Stealth Black Roadster',color: 0x15151b, price: 180_000,  speed: 60, accel: 37, handling: 1.1 },
   { id: 'orange',  name: 'Flame Roadster',        color: 0xff6a13, price: 500_000,  speed: 67, accel: 40, handling: 1.15 },
   { id: 'pink',    name: 'Bubblegum Roadster',    color: 0xff5fb0, price: 1_400_000, speed: 74, accel: 43, handling: 1.15 },
@@ -238,4 +246,32 @@ export function fmt(n) {
   let v = n;
   while (v >= 1000 && u < units.length - 1) { v /= 1000; u++; }
   return `${v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)}${units[u]}`.replace(/\.0+(?=[A-Za-z])/, '');
+}
+
+// ---------------------------------------------------------------- day / night, rewards, rebirth, hub
+
+// day/night cycle on the shared server clock. Stealing is paused at night (like the reference game).
+export const DAY_CYCLE_MS = 6 * 60_000;
+export const NIGHT_MS = 30_000;
+export function nightAt(now) {
+  const t = now % DAY_CYCLE_MS;
+  const start = DAY_CYCLE_MS - NIGHT_MS;
+  if (t >= start) return { night: true, left: DAY_CYCLE_MS - t, untilNight: 0 };
+  return { night: false, left: 0, untilNight: start - t };
+}
+
+export const REWARD_EVERY_MS = 5 * 60_000;       // free reward chest
+export const rewardAmount = (income, rebirths) => Math.round(500 + income * 90 + rebirths * 2000);
+export const REBIRTH_BASE = 2_000_000;
+export const rebirthCost = (n) => Math.round(REBIRTH_BASE * Math.pow(3, n));
+export const REBIRTH_BONUS = 0.5;                 // +50% income per rebirth
+export const FRIEND_BOOST_EACH = 0.05;            // +5% per other player in the room
+export const FRIEND_BOOST_MAX = 0.25;
+
+// hub stations placed on the ring between the roads (slot i sits at angle (i + 0.5) * 36 deg)
+export const HUB_RADIUS = 62;
+export const HUB_STATIONS = ['roadster_shop', 'sell_shop', 'training', 'reward', 'board_money', 'board_speed', 'board_eggs', 'barn', 'board_hatched', 'invite'];
+export function hubPosition(i) {
+  const ang = ((i + 0.5) / BIOMES.length) * Math.PI * 2;
+  return { x: Math.cos(ang) * HUB_RADIUS, z: Math.sin(ang) * HUB_RADIUS, ang };
 }

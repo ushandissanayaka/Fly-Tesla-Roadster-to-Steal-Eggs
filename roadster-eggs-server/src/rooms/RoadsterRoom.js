@@ -7,11 +7,12 @@ import {
 } from '../game/profiles.js';
 import {
   ensureProfile, startHatch, collectEgg, sellAnimals, buyCar, upgrade, applyGrant, grantAdBoost,
-  incomePerSec, addMoney, publicProfile,
+  incomePerSec, addMoney, publicProfile, friendBoost, claimReward, rebirth,
 } from '../game/economy.js';
 import { onGrantRecorded } from '../webhooks/legionWebhook.js';
+import { topProfiles } from '../game/profiles.js';
 import {
-  MAX_CLIENTS, WORLD, BIOMES, biomeLayout, distXZ, carStats, NITRO_MULT, MAX_SPEED_SERVER,
+  MAX_CLIENTS, WORLD, BIOMES, biomeLayout, distXZ, carStats, NITRO_MULT, MAX_SPEED_SERVER, nightAt,
 } from '../shared/gameData.js';
 
 const { Room } = colyseus;
@@ -42,6 +43,7 @@ export class RoadsterRoom extends Room {
     }
 
     this.onMessage('move', (client, m) => this.handleMove(client, m));
+    this.onMessage('look', (client, m) => this.handleLook(client, m));
     this.onMessage('grab', (client, m) => this.handleGrab(client, m));
     this.onMessage('caught', (client) => this.dropEgg(client, true));
     this.onMessage('deliver', (client) => this.handleDeliver(client));
@@ -59,6 +61,11 @@ export class RoadsterRoom extends Room {
       const d = Number(m?.distance);
       if (s && Number.isFinite(d) && d > 0 && d < 220 && d > s.profile.longestJump) { s.profile.longestJump = d; markDirty(); }
     });
+    this.onMessage('claimReward', (client) => this.reply(client, 'claimReward', claimReward(this.profileOf(client), Date.now(), this.friends())));
+    this.onMessage('rebirth', (client) => this.reply(client, 'rebirth', rebirth(this.profileOf(client))));
+    this.onMessage('boards', (client) => client.send('boards', {
+      money: topProfiles('totalMoney'), speed: topProfiles('topSpeed'), eggs: topProfiles('eggsStolen'), hatched: topProfiles('animalsHatched'),
+    }));
     this.onMessage('adReward', (client, token) => this.handleAdReward(client, token));
     this.onMessage('profile', (client) => this.sendProfile(client));
   }
@@ -106,6 +113,11 @@ export class RoadsterRoom extends Room {
     return this.sessions.get(client.sessionId).profile;
   }
 
+  // other players in this room boost everyone's income (the "invite friends" boost)
+  friends() {
+    return friendBoost(this.clients.length - 1);
+  }
+
   reply(client, type, res) {
     client.send(type, res);
     if (res?.ok) markDirty();
@@ -114,13 +126,13 @@ export class RoadsterRoom extends Room {
 
   sendProfile(client) {
     const s = this.sessions.get(client.sessionId);
-    if (s) client.send('profile', publicProfile(s.profile));
+    if (s) client.send('profile', publicProfile(s.profile, Date.now(), this.friends()));
   }
 
   tick() {
     const now = Date.now();
     for (const [sid, s] of this.sessions) {
-      const inc = incomePerSec(s.profile, now);
+      const inc = incomePerSec(s.profile, now, this.friends());
       if (inc > 0) {
         addMoney(s.profile, inc);
         markDirty();
@@ -147,6 +159,18 @@ export class RoadsterRoom extends Room {
   }
 
   // -------------------------------------------------------------- movement
+
+  // the Bloxity character look: only Bloxity URLs / short ids are kept, then shared through the state
+  handleLook(client, m) {
+    const p = this.state.players.get(client.sessionId);
+    if (!p || !m || typeof m !== 'object') return;
+    const look = {};
+    if (typeof m.skin === 'string' && m.skin.length < 300 && /^https:\/\/(static|api)\.bloxity\.io\//.test(m.skin)) look.skin = m.skin;
+    for (const k of ['headId', 'armLId', 'armRId', 'legLId', 'legRId', 'torsoId', 'hatId', 'backId']) {
+      if (typeof m[k] === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(m[k])) look[k] = m[k];
+    }
+    p.look = JSON.stringify(look);
+  }
 
   handleMove(client, m) {
     const s = this.sessions.get(client.sessionId);
@@ -181,6 +205,7 @@ export class RoadsterRoom extends Room {
     if (!s || !p || !Number.isInteger(biome) || !BIOMES[biome]) return;
     if (s.carrying >= 0) return;
     const now = Date.now();
+    if (nightAt(now).night) return client.send('grab', { ok: false, error: 'night' });
     if ((s.grabCooldown[biome] || 0) > now) return client.send('grab', { ok: false, error: 'cooldown' });
     const egg = biomeLayout(biome).egg;
     // must be on the plateau (that means the car jumped the gap), right at the egg

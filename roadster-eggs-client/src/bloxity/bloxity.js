@@ -97,6 +97,25 @@ export const bloxity = {
     const u = state.user;
     return u ? u.pfp || DEFAULT_PFP : this.guest().pfp;
   },
+  // The player's Bloxity character look (skin texture + equipped body parts / hat / back item), used to
+  // build their 3D Bloxity base character in game. null when the SDK is not there (the default look is used).
+  avatarLook() {
+    const A = sdk()?.avatar;
+    if (!A) return null;
+    try {
+      const eq = A.getEquipped?.() || {};
+      const look = { skin: A.getSkinTextureUrl?.() || '' };
+      for (const k of ['headId', 'armLId', 'armRId', 'legLId', 'legRId', 'torsoId', 'hatId', 'backId']) {
+        if (eq[k] && eq[k] !== '-1') look[k] = String(eq[k]);
+      }
+      return look;
+    } catch {
+      return null;
+    }
+  },
+  onAvatarChanged(fn) {
+    try { return sdk()?.avatar?.onAvatarChanged?.(fn) || (() => {}); } catch { return () => {}; }
+  },
   // secret id kept in this browser so a signed-out player's progress is saved on the server
   guestKey() {
     return stored(GUEST_KEY, () => (crypto.randomUUID?.() || `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`));
@@ -137,6 +156,9 @@ export const bloxity = {
     const S = sdk();
     if (!S) throw new Error('Gems are only available on Bloxity');
     return (S.gems || S.bux).requestPurchase(sku);
+  },
+  async gemsBalance() {
+    try { return await (sdk()?.gems || sdk()?.bux)?.getBalance(); } catch { return null; }
   },
   // price + name of a product from the game's IAP catalog, or null
   async iap(sku) {

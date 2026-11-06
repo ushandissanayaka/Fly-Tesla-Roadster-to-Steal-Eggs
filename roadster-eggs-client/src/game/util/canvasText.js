@@ -1,28 +1,53 @@
 import * as THREE from 'three';
 
-// a floating text label (name tags, signs) drawn on a canvas
-export function textSprite(text, { color = '#ffffff', size = 44, bg = 'rgba(0,0,0,0.45)', scale = 0.02 } = {}) {
-  const c = document.createElement('canvas');
-  const ctx = c.getContext('2d');
-  const font = `700 ${size}px Fredoka, 'Segoe UI', sans-serif`;
-  ctx.font = font;
-  const w = Math.ceil(ctx.measureText(text).width) + 36;
-  const h = size + 22;
-  c.width = w;
-  c.height = h;
-  ctx.font = font;
-  ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.roundRect(0, 0, w, h, h / 2);
-  ctx.fill();
-  ctx.fillStyle = color;
-  ctx.textBaseline = 'middle';
+function draw(canvas, lines, { size, bg, scale, sprite }) {
+  const ctx = canvas.getContext('2d');
+  const rows = lines.map((l) => (typeof l === 'string' ? { text: l } : l));
+  const fonts = rows.map((r) => `800 ${r.size || size}px Fredoka, 'Segoe UI', sans-serif`);
+  let w = 0;
+  rows.forEach((r, i) => { ctx.font = fonts[i]; w = Math.max(w, ctx.measureText(r.text).width); });
+  w = Math.ceil(w) + 40;
+  const h = Math.ceil(rows.reduce((s, r) => s + (r.size || size) * 1.2, 0)) + 16;
+  canvas.width = w;
+  canvas.height = h;
+  if (bg) {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, w, h, Math.min(h / 2, 36));
+    ctx.fill();
+  }
   ctx.textAlign = 'center';
-  ctx.fillText(text, w / 2, h / 2 + 2);
-  const tex = new THREE.CanvasTexture(c);
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  let y = 8;
+  rows.forEach((r, i) => {
+    const sz = r.size || size;
+    ctx.font = fonts[i];
+    y += sz * 0.6;
+    ctx.lineWidth = Math.max(4, sz * 0.18);
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(r.text, w / 2, y);
+    ctx.fillStyle = r.color || '#ffffff';
+    ctx.fillText(r.text, w / 2, y);
+    y += sz * 0.6;
+  });
+  if (sprite) sprite.scale.set(w * scale, h * scale, 1);
+}
+
+// A floating label: bold white text with a black outline (like the reference game's world labels).
+// `lines` is a string or [{ text, color, size }]. Call sprite.userData.set(lines) to change the text.
+export function textSprite(lines, { color = '#ffffff', size = 44, bg = null, scale = 0.02 } = {}) {
+  const canvas = document.createElement('canvas');
+  const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  s.scale.set(w * scale, h * scale, 1);
-  s.userData.dispose = () => { tex.dispose(); s.material.dispose(); };
-  return s;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  const set = (value) => {
+    const arr = Array.isArray(value) ? value : [value];
+    draw(canvas, arr.map((l) => (typeof l === 'string' ? { text: l, color } : l)), { size, bg, scale, sprite });
+    tex.needsUpdate = true;
+  };
+  set(lines);
+  sprite.userData.set = set;
+  sprite.userData.dispose = () => { tex.dispose(); sprite.material.dispose(); };
+  return sprite;
 }

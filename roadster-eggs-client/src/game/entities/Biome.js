@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BIOMES, WORLD, biomeLayout } from '../../shared/gameData.js';
 import { mat } from '../util/materials.js';
+import { studMaterial } from '../util/textures.js';
 import { textSprite } from '../util/canvasText.js';
 import { makeEgg } from './Egg.js';
 import { Guard } from './Guard.js';
@@ -51,9 +52,9 @@ export class Biome {
     scene.add(root);
     this.root = root;
 
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(WORLD.biomeRadius + 6, 48), mat(def.ground));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(WORLD.biomeRadius + 6, 48), studMaterial(def.ground, 26, 26));
     disc.rotation.x = -Math.PI / 2;
-    disc.position.y = 0.03;
+    disc.position.y = 0.03 + index * 0.004;   // neighbouring discs overlap: keep them from z-fighting
     disc.receiveShadow = true;
     root.add(disc);
 
@@ -130,7 +131,8 @@ export class Biome {
       const r = 12 + rnd() * (WORLD.biomeRadius - 16);
       const u = Math.cos(a) * r;
       const v = Math.sin(a) * r;
-      if (u > rampU0 - 12 && u < plateauU1 + 14 && Math.abs(v) < 28) continue;   // keep the drive clear
+      if (Math.abs(v) < 26) continue;                                                // keep the track clear
+      if (u > rampU0 - 12 && u < plateauU1 + 14 && Math.abs(v) < 28) continue;
       spots.push({ u, v, s: 0.7 + rnd() * 0.9, r: rnd() * 6.28 });
     }
     const m4 = new THREE.Matrix4();
