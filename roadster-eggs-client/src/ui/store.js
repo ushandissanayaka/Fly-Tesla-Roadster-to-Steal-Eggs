@@ -32,6 +32,13 @@ export const store = createStore({
   nitro: 1,             // 0..1 nitro charge
   carrying: -1,         // biome index of the stolen egg
   chase: 0,             // distance to the guard while carrying
+  gems: null,
+  objective: 'Steal an Egg!',
+  night: false,
+  prompt: null,         // { id, label, sub } shown as the E prompt
+  trapCharges: 3,
+  batCd: 0,
+  zooTab: 'book',
   toast: null,          // { text, kind, id }
   modal: null,          // 'garage' | 'training' | 'incubator' | 'zoo' | 'shop' | null
   hatchResult: null,    // { animal, mut }

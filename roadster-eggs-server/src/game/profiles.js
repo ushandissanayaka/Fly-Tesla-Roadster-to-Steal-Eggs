@@ -74,6 +74,8 @@ async function mongoStore() {
   await Promise.all([
     profiles.createIndex({ eggsStolen: -1 }),
     profiles.createIndex({ totalMoney: -1 }),
+    profiles.createIndex({ topSpeed: -1 }),
+    profiles.createIndex({ animalsHatched: -1 }),
     grants.createIndex({ userId: 1, applied: 1 }),
   ]);
   const strip = (doc) => { if (!doc) return null; const { _id, ...p } = doc; return p; };
@@ -137,14 +139,16 @@ export function defaultProfile(userId, displayName) {
     animalsHatched: 0,
     topSpeed: 0,
     longestJump: 0,
-    car: 'red',
-    ownedCars: ['red'],
+    car: 'white',
+    ownedCars: ['white'],
     upgrades: { speed: 0, accel: 0, boost: 0, slots: 0 },
     incubators: [],       // [{ biome, readyAt }]
     animals: [],          // [{ id, mut }]  mut = index into MUTATIONS
     discovered: {},       // animalId -> best mutation index + 1
     passes: {},           // vip, auto_nitro
     boostUntil: 0,        // rewarded-ad income boost
+    rebirths: 0,
+    lastRewardAt: 0,
     createdAt: Date.now(),
     guestCopiedFrom: null,
   };
@@ -240,7 +244,7 @@ export async function flushProfiles() {
 
 // ---------------------------------------------------------------- leaderboards (refreshed in the background)
 
-const tops = { eggsStolen: [], totalMoney: [] };
+const tops = { eggsStolen: [], totalMoney: [], topSpeed: [], animalsHatched: [] };
 export async function refreshTop(limit = 9) {
   for (const field of Object.keys(tops)) {
     try {

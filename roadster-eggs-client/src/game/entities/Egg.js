@@ -1,22 +1,23 @@
 import * as THREE from 'three';
+import { mat } from '../util/materials.js';
 
-// An egg: an ellipsoid with a few spots, base colour + spot colour per biome.
+const WIDTHS = [1.0, 1.6, 2.0, 2.2, 2.2, 2.0, 1.6, 1.0];   // voxel egg: stacked cubes, widest in the middle
+const LAYER = 0.55;
+
+// A voxel egg (stacked cubes) like the reference: base colour with a coloured band at the bottom and a tuft on top.
 export function makeEgg([base, spot], size = 1) {
   const g = new THREE.Group();
-  const geo = new THREE.SphereGeometry(1, 20, 16);
-  geo.scale(0.75, 1, 0.75);
-  const shell = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: base, roughness: 0.35, metalness: 0.1 }));
-  shell.castShadow = true;
-  g.add(shell);
-  const spotMat = new THREE.MeshStandardMaterial({ color: spot, roughness: 0.5 });
-  const rnd = (n) => { const x = Math.sin(n * 91.7) * 10000; return x - Math.floor(x); };
-  for (let i = 0; i < 7; i++) {
-    const phi = rnd(i + 1) * Math.PI * 2;
-    const th = 0.5 + rnd(i + 9) * 2.1;
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.17 + rnd(i + 3) * 0.1, 8, 6), spotMat);
-    s.position.set(Math.sin(th) * Math.cos(phi) * 0.74, Math.cos(th), Math.sin(th) * Math.sin(phi) * 0.74);
-    g.add(s);
-  }
-  g.scale.setScalar(size);
+  const baseMat = mat(base, { rough: 0.5 });
+  const spotMat = mat(spot, { rough: 0.5 });
+  WIDTHS.forEach((w, i) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, LAYER, w), i < 2 || i === 4 ? spotMat : baseMat);
+    m.position.y = i * LAYER + LAYER / 2 - (WIDTHS.length * LAYER) / 2;
+    m.castShadow = true;
+    g.add(m);
+  });
+  const tuft = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.5), spotMat);
+  tuft.position.y = (WIDTHS.length * LAYER) / 2 + 0.2;
+  g.add(tuft);
+  g.scale.setScalar(size * 0.5);
   return g;
 }
